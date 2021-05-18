@@ -1,9 +1,9 @@
 const express = require('express');
 const connection = require("./connection");
 const app = express();
+const services = require('./services');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-
 app.use(express.json());
 
 if (!!connection) {
@@ -12,6 +12,30 @@ if (!!connection) {
     let x = require('crypto').randomBytes(64).toString('hex');
     // Gets the port value from the .env file, otherwise uses the default value of 3000
     const PORT = process.env.PORT || 3000;
+    if (!!services) {
+        //Generating API from service collection
+        for(var key in services) {
+            if (services[key].hasOwnProperty('post')){
+                createPostServices(services[key].post.url,services[key].post.query,services[key].post.params);   
+            }
+            
+            //Creating rest services for different properties in the GET object
+            if (services[key].hasOwnProperty('get')){
+                for (var service in services[key]["get"]){
+                    createGetServices(services[key]['get'][service].url,services[key]['get'][service].query,services[key]['get'][service].params); 
+                } 
+            }
+            if (services[key].hasOwnProperty('put')){
+                createPutServices(services[key].put.url,services[key].put.query,services[key].put.params);
+            }
+            if (services[key].hasOwnProperty('delete')){
+                createDeleteServices(services[key].delete.url,services[key].delete.query,services[key].delete.params);
+            }
+            
+        } 
+    } else {
+        console.log("No services were created");
+    }
 
     app.listen(PORT, () => {
         console.log(`SERVER RUNNING ON http://localhost:${PORT}`);
@@ -20,15 +44,6 @@ if (!!connection) {
     console.log("COULD NOT CONNECT TO DATABASE");
 }
 
-let test = {
-    "url":"/customers/all",
-    "query":"SELECT * FROM customersTbl",
-    "params":[]
-}
-
-createGetServices(test.url,test.query, test.params);
-
-
 /**
  * Function to generate the GET services
  * @param {*} url 
@@ -36,14 +51,14 @@ createGetServices(test.url,test.query, test.params);
  * @param {*} params 
  */
 function createGetServices(url,query,params) {
-    console.log("Creating GET services for... " + url);
+    console.log(`Creating GET services for... ${url}`);
     app.get(url,function(req,res,next){
         //Array to store dynamic parameters
-        var ids = [];
-        for (var i=0;i<params.length;i++){
+        let ids = [];
+        for (let i=0;i<params.length;i++){
             ids.push(req.params[params[i]]);
         }
-       req.getConnection(function(err, connection) {
+        req.getConnection(function(err, connection) {
           if (err) return next(err);
 
           connection.query(query,ids, function(err, results) {
@@ -111,7 +126,7 @@ function createPutServices(url,query,params){
  * @param {*} params 
  */
 function createDeleteServices(url,query,params){
-    console.log("Creating DELETE services for ... "+url);
+    console.log(`Creating DELETE services for ...${url}`);
     app.delete(url,function(req,res,next){
         //Array to store dynamic parameters
         let ids = [];
